@@ -1,13 +1,31 @@
+/**
+ * Custom matchers used by API tests.
+ *
+ * Called from:
+ * - test files: `import { expect } from '../utils/custom-expect'`
+ *
+ * Depends on:
+ * - logger instance injected from `utils/fixtures.ts` via `setCustomExpectLogger`.
+ *
+ * Why this file exists:
+ * - keeps assertion style consistent,
+ * - appends recent API logs on failure,
+ * - centralizes schema validation matcher.
+ */
+
 import { expect as baseExpect } from '@playwright/test';
 import { APILogger } from './logger';
 import { validateSchema } from './schema-validator';
 
+// Filled by fixtures before each test; used to enrich matcher failure messages.
 let apiLogger: APILogger
 
+// Called in `fixtures.ts` when `api` fixture is created.
 export const setCustomExpectLogger = (logger: APILogger) => {
     apiLogger = logger
 }
 
+// Type augmentation so TS knows `shouldEqual`, `shouldMatchSchema`, etc.
 declare global {
     namespace PlaywrightTest {
         interface Matchers<R, T>{
@@ -19,6 +37,8 @@ declare global {
 }
 
 export const expect = baseExpect.extend({
+    // Flow: test -> shouldMatchSchema -> validateSchema() in schema-validator.ts
+    // If schema check fails, we append recent request/response logs for faster diagnosis.
     async shouldMatchSchema(received: any, dirName: string, fileName: string, createSchemaFlag: boolean = false) {
         let pass: boolean;
         let message: string = ''
@@ -38,6 +58,7 @@ export const expect = baseExpect.extend({
             pass
         };
     },
+    // Wrapper around Playwright `toEqual` to keep one failure format with API context.
     shouldEqual(received: any, expected: any) {
         let pass: boolean;
         let logs: string = ''
@@ -65,6 +86,7 @@ export const expect = baseExpect.extend({
             pass
         };
     },
+    // Wrapper around Playwright `toBeLessThanOrEqual` with the same API-log behavior.
     shouldBeLessThanOrEqual(received: any, expected: any) {
         let pass: boolean;
         let logs: string = ''
